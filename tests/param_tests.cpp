@@ -599,6 +599,31 @@ TEST_CASE("Temposync type In")
     }
 }
 
+TEST_CASE("Type-ins accept either decimal separator")
+{
+    // std::stof follows LC_NUMERIC, so a comma-decimal type-in silently lost its
+    // fraction on a dot-decimal host, and the reverse everywhere else. This needs
+    // no locale juggling to demonstrate: under the C locale std::stof("0,5")
+    // stops at the comma and yields 0, so these assertions fail on the old path
+    // on any runner.
+    auto p = pmd::ParamMetaData().asFloat().withRange(-1.f, 1.f).withLinearScaleFormatting("x");
+    std::string em;
+
+    SECTION("either separator reads the same value")
+    {
+        REQUIRE(*p.valueFromString("0.5", em) == Approx(0.5));
+        REQUIRE(*p.valueFromString("0,5", em) == Approx(0.5));
+        REQUIRE(*p.valueFromString("-0,25", em) == Approx(-0.25));
+        REQUIRE(*p.valueFromString("-0.25", em) == Approx(-0.25));
+    }
+
+    SECTION("unit suffixes still work with either separator")
+    {
+        REQUIRE(*p.valueFromString("0,5 x", em) == Approx(0.5));
+        REQUIRE(*p.valueFromString("0.5 x", em) == Approx(0.5));
+    }
+}
+
 TEST_CASE("Malformed type-in returns nullopt rather than throwing")
 {
     // valueFromString hands back a std::optional, so input it cannot parse has to
