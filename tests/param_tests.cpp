@@ -599,6 +599,67 @@ TEST_CASE("Temposync type In")
     }
 }
 
+TEST_CASE("Malformed type-in returns nullopt rather than throwing")
+{
+    // valueFromString hands back a std::optional, so input it cannot parse has to
+    // come back as nullopt. Every float display scale wraps its std::stof for that
+    // reason except LOGARITHMIC, which let std::invalid_argument escape to the
+    // caller - and an empty field is the easy way to hit it.
+    auto lg = pmd::ParamMetaData().asFloat().withRange(0.1f, 100.f).withLogarithmicFormating("Hz");
+    auto ln = pmd::ParamMetaData().asFloat().withRange(0.f, 1.f).withLinearScaleFormatting("x");
+
+    for (const auto &bad : {std::string("banana"), std::string(""), std::string("   ")})
+    {
+        DYNAMIC_SECTION("LOGARITHMIC rejects '" << bad << "'")
+        {
+            std::string em;
+            std::optional<float> r;
+            REQUIRE_NOTHROW(r = lg.valueFromString(bad, em));
+            REQUIRE(!r.has_value());
+        }
+
+        // the sibling scale already behaved; keep it honest that we match it
+        DYNAMIC_SECTION("LINEAR rejects '" << bad << "'")
+        {
+            std::string em;
+            std::optional<float> r;
+            REQUIRE_NOTHROW(r = ln.valueFromString(bad, em));
+            REQUIRE(!r.has_value());
+        }
+    }
+
+    SECTION("well formed input still parses")
+    {
+        std::string em;
+        REQUIRE(lg.valueFromString("10", em).has_value());
+    }
+}
+
+TEST_CASE("Malformed temposync notation returns nullopt rather than throwing")
+{
+    auto p = pmd::ParamMetaData().asLfoRate();
+
+    // A digit anywhere in the numeric part is not a digit on both sides of the
+    // slash, so a half-typed fraction reached std::stoi with an empty side, and a
+    // long run of digits overflowed int. "1/" is simply what is on screen partway
+    // through typing "1/4".
+    for (const auto &bad : {std::string("1/"), std::string("/4"), std::string("999999999999"),
+                            std::string("1/999999999999")})
+    {
+        DYNAMIC_SECTION("rejects '" << bad << "'")
+        {
+            std::optional<float> v;
+            REQUIRE_NOTHROW(v = p.valueFromTemposyncNotation(bad));
+            REQUIRE(!v.has_value());
+        }
+    }
+
+    SECTION("the well formed neighbour still parses")
+    {
+        REQUIRE(p.valueFromTemposyncNotation("1/4").has_value());
+    }
+}
+
 TEST_CASE("Temposync ZERO_ONE flavor dispatch")
 {
     namespace ts = sst::basic_blocks::tables::temposync;

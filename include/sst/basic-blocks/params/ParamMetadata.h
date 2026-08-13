@@ -1738,17 +1738,25 @@ inline std::optional<float> ParamMetaData::valueFromString(std::string_view v, s
         if (v == "-inf")
             return minVal;
 
-        auto r = std::stof(std::string(v));
-        // A ln(r) / ln(B) + C = v
-        // (r - c) * lnB / A = lnv
-        auto lnv = (r - svC) * std::log(svB) / svA;
-        auto res = std::exp(lnv);
-        if (res < minVal || res > maxVal)
+        try
+        {
+            auto r = std::stof(std::string(v));
+            // A ln(r) / ln(B) + C = v
+            // (r - c) * lnB / A = lnv
+            auto lnv = (r - svC) * std::log(svB) / svA;
+            auto res = std::exp(lnv);
+            if (res < minVal || res > maxVal)
+            {
+                errMsg = rangeMsg();
+                return std::nullopt;
+            }
+            return res;
+        }
+        catch (const std::exception &)
         {
             errMsg = rangeMsg();
             return std::nullopt;
         }
-        return res;
     }
     break;
 
