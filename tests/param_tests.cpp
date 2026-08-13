@@ -609,18 +609,26 @@ TEST_CASE("Type-ins accept either decimal separator")
     auto p = pmd::ParamMetaData().asFloat().withRange(-1.f, 1.f).withLinearScaleFormatting("x");
     std::string em;
 
+    // dereferencing the optional without asking would core dump on a nullopt
+    // instead of failing, so check first and then compare
+    auto reads = [&p, &em](const char *in, double expected) {
+        auto v = p.valueFromString(in, em);
+        REQUIRE(v.has_value());
+        REQUIRE(*v == Approx(expected));
+    };
+
     SECTION("either separator reads the same value")
     {
-        REQUIRE(*p.valueFromString("0.5", em) == Approx(0.5));
-        REQUIRE(*p.valueFromString("0,5", em) == Approx(0.5));
-        REQUIRE(*p.valueFromString("-0,25", em) == Approx(-0.25));
-        REQUIRE(*p.valueFromString("-0.25", em) == Approx(-0.25));
+        reads("0.5", 0.5);
+        reads("0,5", 0.5);
+        reads("-0,25", -0.25);
+        reads("-0.25", -0.25);
     }
 
     SECTION("unit suffixes still work with either separator")
     {
-        REQUIRE(*p.valueFromString("0,5 x", em) == Approx(0.5));
-        REQUIRE(*p.valueFromString("0.5 x", em) == Approx(0.5));
+        reads("0,5 x", 0.5);
+        reads("0.5 x", 0.5);
     }
 }
 

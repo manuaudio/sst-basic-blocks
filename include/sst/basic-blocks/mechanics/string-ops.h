@@ -24,8 +24,8 @@
  * https://github.com/surge-synthesizer/sst-basic-blocks
  */
 
-#ifndef INCLUDE_SST_BASIC_BLOCKS_STRINGS_NUMBERPARSING_H
-#define INCLUDE_SST_BASIC_BLOCKS_STRINGS_NUMBERPARSING_H
+#ifndef INCLUDE_SST_BASIC_BLOCKS_MECHANICS_STRING_OPS_H
+#define INCLUDE_SST_BASIC_BLOCKS_MECHANICS_STRING_OPS_H
 
 #include <algorithm>
 #include <locale>
@@ -58,7 +58,7 @@
  * a decimal point unless it sits where a group separator would.
  */
 
-namespace sst::basic_blocks::strings
+namespace sst::basic_blocks::mechanics
 {
 
 /*
@@ -254,6 +254,6 @@ inline std::optional<double> parseNumber(const char *s, const SeparatorConventio
     return parseNumber(std::string_view(s), nat);
 }
 
-} // namespace sst::basic_blocks::strings
+} // namespace sst::basic_blocks::mechanics
 
-#endif // INCLUDE_SST_BASIC_BLOCKS_STRINGS_NUMBERPARSING_H
+#endif // INCLUDE_SST_BASIC_BLOCKS_MECHANICS_STRING_OPS_H

@@ -74,7 +74,7 @@
 #include <stdexcept>
 
 #include "sst/basic-blocks/tables/TemposyncSupport.h"
-#include "sst/basic-blocks/strings/NumberParsing.h"
+#include "sst/basic-blocks/mechanics/string-ops.h"
 
 namespace sst::basic_blocks::params
 {
@@ -84,7 +84,7 @@ namespace detail
 /*
  * Type-ins used to go through std::stof, which follows LC_NUMERIC, so in a
  * comma-decimal locale "0.5" stopped at the dot and silently became 0 - and the
- * other way around in a dot-decimal one. strings::parseNumber takes either
+ * other way around in a dot-decimal one. mechanics::parseNumber takes either
  * separator instead.
  *
  * Every caller below already sits inside a try/catch that turns a parse failure
@@ -94,7 +94,7 @@ namespace detail
  */
 inline float toFloat(std::string_view v)
 {
-    auto r = strings::parseNumber(v);
+    auto r = mechanics::parseNumber(v);
     if (!r)
         throw std::invalid_argument("value is not a number");
     return (float)*r;
