@@ -72,6 +72,32 @@ struct SeparatorConventions
     bool grouped{false}; // does this locale actually group digits at all
 };
 
+/*
+ * What a given locale believes about separators. Pulled out so a caller doing
+ * multi-locale work can build conventions for a locale other than the one the
+ * process happens to be in, and so the tests can be deterministic.
+ *
+ * A locale that carries no numpunct facet is reported as knowing nothing, which
+ * lands on the accept-either-separator path rather than on a guess.
+ */
+inline SeparatorConventions separatorConventionsFor(const std::locale &loc)
+{
+    SeparatorConventions c;
+
+    try
+    {
+        const auto &np = std::use_facet<std::numpunct<char>>(loc);
+        c.decimal = np.decimal_point();
+        c.thousands = np.thousands_sep();
+        c.grouped = !np.grouping().empty();
+    }
+    catch (const std::exception &)
+    {
+    }
+
+    return c;
+}
+
 namespace detail
 {
 /*
@@ -85,13 +111,9 @@ inline const SeparatorConventions &nativeConventions()
     static const SeparatorConventions conventions = []() -> SeparatorConventions {
         try
         {
-            std::locale loc("");
-            const auto &np = std::use_facet<std::numpunct<char>>(loc);
-            SeparatorConventions c;
-            c.decimal = np.decimal_point();
-            c.thousands = np.thousands_sep();
-            c.grouped = !np.grouping().empty();
-            return c;
+            // std::locale("") reads the environment and throws outright if it
+            // names a locale that does not exist, so this stays guarded.
+            return separatorConventionsFor(std::locale(""));
         }
         catch (const std::exception &)
         {

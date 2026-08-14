@@ -29,6 +29,8 @@
 
 #include <string>
 #include <string_view>
+#include <functional>
+#include <locale>
 #include <optional>
 
 namespace mech = sst::basic_blocks::mechanics;
@@ -141,6 +143,75 @@ TEST_CASE("Number parsing returns nullopt rather than throwing")
             REQUIRE_NOTHROW(r = mech::parseNumber(bad, conv));
             REQUIRE(!r.has_value());
         }
+    }
+}
+
+TEST_CASE("Separator conventions read from a locale")
+{
+    // Which locales exist varies by machine and CI image, so each case checks the
+    // locale is there before asserting anything - a locale this runner doesn't
+    // have should skip rather than fail.
+    auto withLocale = [](const char *name, const std::function<void(const std::locale &)> &fn) {
+        try
+        {
+            std::locale loc(name);
+            fn(loc);
+        }
+        catch (const std::exception &)
+        {
+            WARN("locale " << name << " is not installed here, skipping");
+        }
+    };
+
+    SECTION("the classic locale reports no grouping")
+    {
+        auto c = mech::separatorConventionsFor(std::locale::classic());
+        REQUIRE(c.decimal == '.');
+        REQUIRE(!c.grouped);
+    }
+
+    SECTION("a dot-decimal locale")
+    {
+        withLocale("en_US.UTF-8", [](const std::locale &loc) {
+            auto c = mech::separatorConventionsFor(loc);
+            REQUIRE(c.decimal == '.');
+            REQUIRE(c.thousands == ',');
+            REQUIRE(c.grouped);
+
+            requireParses(mech::parseNumber("1.5", c), 1.5);
+            // one trailing digit cannot be a thousands group, so this is a half
+            requireParses(mech::parseNumber("0,5", c), 0.5);
+            // three of them, on this locale's own group character, is a thousand
+            requireParses(mech::parseNumber("1,234", c), 1234.0);
+        });
+    }
+
+    SECTION("a comma-decimal locale")
+    {
+        withLocale("fr_FR.UTF-8", [](const std::locale &loc) {
+            auto c = mech::separatorConventionsFor(loc);
+            REQUIRE(c.decimal == ',');
+            REQUIRE(c.grouped);
+
+            requireParses(mech::parseNumber("0,5", c), 0.5);
+            // '.' is neither this locale's decimal nor its group character
+            requireParses(mech::parseNumber("1.5", c), 1.5);
+            // French groups with a space, which the facet tells us and we honour
+            requireParses(mech::parseNumber("1 234,5", c), 1234.5);
+        });
+    }
+
+    SECTION("a period-grouping locale")
+    {
+        withLocale("de_DE.UTF-8", [](const std::locale &loc) {
+            auto c = mech::separatorConventionsFor(loc);
+            REQUIRE(c.decimal == ',');
+            REQUIRE(c.thousands == '.');
+
+            requireParses(mech::parseNumber("0,5", c), 0.5);
+            requireParses(mech::parseNumber("1.234", c), 1234.0);
+            requireParses(mech::parseNumber("1.234,5", c), 1234.5);
+        });
     }
 }
 
